@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-"""Web Crawler/Spider
+""" Web Crawler/Spider
 
 This module implements a web crawler. This is very _basic_ only
 and needs to be extended to do anything usefull with the
 traversed pages.
 
-From: http://code.activestate.com/recipes/576551-simple-web-crawler/
-
+Base on https://github.com/ewa/python-webcrawler.
 """
 
 import re
+import os
 import sys
 import time
 import math
@@ -21,11 +21,10 @@ import hashlib
 from cgi import escape
 from traceback import format_exc
 from Queue import Queue, Empty as QueueEmpty
-
 from bs4 import BeautifulSoup
 
-__version__ = "0.2"
-__copyright__ = "CopyRight (C) 2008-2011 by James Mills"
+__version__ = "0.3"
+__copyright__ = "CopyRight (C) 2008-2011 by James Mills, (C) 2015 Lukas Mestan"
 __license__ = "MIT"
 __author__ = "James Mills"
 __author_email__ = "James Mills, James dot Mills st dotred dot com dot au"
@@ -65,7 +64,6 @@ class Crawler(object):
         self.confine_prefix=confine    # Limit search to this prefix
         self.exclude_prefixes=exclude; # URL prefixes NOT to visit
                 
-
         self.urls_seen = set()          # Used to avoid putting duplicates in queue
         self.urls_remembered = set()    # For reporting to user
         self.visited_links= set()       # Used to avoid re-processing a page
@@ -89,14 +87,14 @@ class Crawler(object):
             self.out_url_filters=[]
 
     def _pre_visit_url_condense(self, url):
-        
         """ Reduce (condense) URLs into some canonical form before
         visiting.  All occurrences of equivalent URLs are treated as
         identical.
 
         All this does is strip the \"fragment\" component from URLs,
         so that http://foo.com/blah.html\#baz becomes
-        http://foo.com/blah.html """
+        http://foo.com/blah.html 
+        """
 
         base, frag = urlparse.urldefrag(url)
         return base
@@ -128,12 +126,9 @@ class Crawler(object):
         except Exception, e:
             print >> sys.stderr, "ERROR: Can't process url '%s' (%s)" % (url, e)
             return False
-            
 
     def crawl(self):
-
         """ Main function in the crawling process.  Core algorithm is:
-
         q <- starting page
         while q not empty:
            url <- q.get()
@@ -145,7 +140,8 @@ class Crawler(object):
 
         new and suitable means that we don't re-visit URLs we've seen
         already fetched, and user-supplied criteria like maximum
-        search depth are checked. """
+        search depth are checked. 
+        """
         
         q = Queue()
         q.put((self.root, 0))
@@ -185,7 +181,7 @@ class Crawler(object):
                                     self.links_remembered.add(link)
                 except Exception, e:
                     print >>sys.stderr, "ERROR: Can't process url '%s' (%s)" % (this_url, e)
-                    #print format_exc()
+
 
 class OpaqueDataException (Exception):
     def __init__(self, message, mimetype, url):
@@ -195,8 +191,8 @@ class OpaqueDataException (Exception):
         
 
 class Fetcher(object):
-    
-    """The name Fetcher is a slight misnomer: This class retrieves and interprets web pages."""
+    """ The name Fetcher is a slight misnomer: This class retrieves and interprets web pages.
+    """
 
     def __init__(self, url):
         self.url = url
@@ -225,14 +221,15 @@ class Fetcher(object):
         self._addHeaders(request)
         if handle:
             try:
-                data=handle.open(request)
-                mime_type=data.info().gettype()
-                url=data.geturl();
+                data = handle.open(request)
+                mime_type = data.info().gettype()
+                url = data.geturl();
                 if mime_type != "text/html":
                     raise OpaqueDataException("Not interested in files of type %s" % mime_type,
                                               mime_type, url)
                 content = unicode(data.read(), "utf-8",
                         errors="replace")
+
                 soup = BeautifulSoup(content)
                 tags = soup('a')
             except urllib2.HTTPError, error:
@@ -261,8 +258,7 @@ def getLinks(url):
         print "%d. %s" % (i, url)
 
 def parse_options():
-    """parse_options() -> opts, args
-
+    """ parse_options() -> opts, args
     Parse any command-line options given returning both
     the parsed options and arguments.
     """
@@ -278,7 +274,7 @@ def parse_options():
             help="Get links for specified url only")    
 
     parser.add_option("-d", "--depth",
-            action="store", type="int", default=30, dest="depth_limit",
+            action="store", type="int", default=0, dest="depth_limit",
             help="Maximum depth to traverse")
 
     parser.add_option("-c", "--confine",
@@ -297,9 +293,14 @@ def parse_options():
     parser.add_option("-D", "--dot", action="store_true", default=False,
                       dest="out_dot", help="Output Graphviz dot file")
     
-
+    parser.add_option("-p", "--path", action="store", type="string", 
+                      dest="out_path", default=False, help="Output path directory")
 
     opts, args = parser.parse_args()
+
+    if not opts.out_path: 
+        parser.print_help(sys.stderr)
+        parser.error('output path not given (options -p)')
 
     if len(args) < 1:
         parser.print_help(sys.stderr)
@@ -311,21 +312,22 @@ def parse_options():
 
     return opts, args
 
-class DotWriter:
 
+class DotWriter:
     """ Formats a collection of Link objects as a Graphviz (Dot)
     graph.  Mostly, this means creating a node for each URL with a
     name which Graphviz will accept, and declaring links between those
-    nodes."""
+    nodes.
+    """
 
     def __init__ (self):
         self.node_alias = {}
 
     def _safe_alias(self, url, silent=False):
-
-        """Translate URLs into unique strings guaranteed to be safe as
+        """ Translate URLs into unique strings guaranteed to be safe as
         node names in the Graphviz language.  Currently, that's based
-        on the md5 digest, in hexadecimal."""
+        on the md5 digest, in hexadecimal.
+        """
 
         if url in self.node_alias:
             return self.node_alias[url]
@@ -335,22 +337,31 @@ class DotWriter:
             name = "N"+m.hexdigest()
             self.node_alias[url]=name
             if not silent:
-                print "\t%s [label=\"%s\"];" % (name, url)                
+                print "\t%s [label=\"%s\"];" % (name, url)    
+
             return name
 
-
     def asDot(self, links):
+        """ Render a collection of Link objects as a Dot graph
+        """
 
-        """ Render a collection of Link objects as a Dot graph"""
-        
         print "digraph Crawl {"
         print "\t edge [K=0.2, len=0.1];"
         for l in links:            
             print "\t" + self._safe_alias(l.src) + " -> " + self._safe_alias(l.dst) + ";"
         print  "}"
 
-        
-    
+
+def ToSeoFriendly(s, maxlen):
+    """ Join with dashes, eliminate punction, clip to maxlen, lowercase.
+        >>> ToSeoFriendly("The quick. brown4 fox jumped", 14)
+        'the-quick-brow'
+    """
+
+    t = '-'.join(s.split())                                # join words with dashes
+    u = ''.join([c for c in t if c.isalnum() or c=='-'])   # remove punctation   
+    return u[:maxlen].rstrip('-').lower()                  # clip to maxlen
+
 
 def main():    
     opts, args = parse_options()
@@ -362,17 +373,34 @@ def main():
         raise SystemExit, 0
 
     depth_limit = opts.depth_limit
-    confine_prefix=opts.confine
-    exclude=opts.exclude
+    confine_prefix = opts.confine
+    exclude = opts.exclude
 
     sTime = time.time()
 
-    print >> sys.stderr,  "Crawling %s (Max Depth: %d)" % (url, depth_limit)
+    print >> sys.stderr, "Crawling %s (Max Depth: %d)" % (url, depth_limit)
     crawler = Crawler(url, depth_limit, confine_prefix, exclude)
     crawler.crawl()
 
     if opts.out_urls:
-        print "\n".join(crawler.urls_seen)
+        for url in crawler.urls_seen:
+            try:
+                request = urllib2.Request(url)
+                handle = urllib2.build_opener()
+                handle.addheaders = [('User-agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11')]
+                data = handle.open(request)
+
+                parsed_uri = urlparse.urlparse(url)
+                directory = opts.out_path + '{uri.netloc}'.format(uri = parsed_uri) + '/'
+                path = directory + ToSeoFriendly(url, 50) + '.html'
+                if not os.path.exists(directory):
+                    os.makedirs(directory)
+
+                with open(path, 'w') as file_:
+                    file_.write(data.read())
+
+            except IOError:
+                pass
 
     if opts.out_links:
         print "\n".join([str(l) for l in crawler.links_remembered])
