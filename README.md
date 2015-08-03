@@ -33,4 +33,3 @@ Usage: crawler.py [options] <url>
 ```python
 python crawler.py -d 0 -u -p "/var/tmp/downloaded/" "https://github.com/"
 ```
-
