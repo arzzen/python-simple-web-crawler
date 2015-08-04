@@ -24,10 +24,10 @@ from Queue import Queue, Empty as QueueEmpty
 from bs4 import BeautifulSoup
 
 __version__ = "0.3"
-__copyright__ = "CopyRight (C) 2008-2011 by James Mills, (C) 2015 Lukas Mestan"
+__copyright__ = "2008-2011 James Mills, 2015 Lukas Mestan"
 __license__ = "MIT"
-__author__ = "James Mills"
-__author_email__ = "James Mills, James dot Mills st dotred dot com dot au"
+__author__ = "James Mills, Lukas Mestan"
+__author_email__ = "lukas.mestan@gmail.com"
 
 USAGE = "%prog [options] <url>"
 VERSION = "%prog v" + __version__
@@ -61,19 +61,19 @@ class Crawler(object):
         ## Data for filters:
         self.depth_limit = depth_limit # Max depth (number of hops from root)
         self.locked = locked           # Limit search to a single host?
-        self.confine_prefix=confine    # Limit search to this prefix
-        self.exclude_prefixes=exclude; # URL prefixes NOT to visit
+        self.confine_prefix = confine    # Limit search to this prefix
+        self.exclude_prefixes = exclude; # URL prefixes NOT to visit
                 
         self.urls_seen = set()          # Used to avoid putting duplicates in queue
         self.urls_remembered = set()    # For reporting to user
-        self.visited_links= set()       # Used to avoid re-processing a page
+        self.visited_links = set()       # Used to avoid re-processing a page
         self.links_remembered = set()   # For reporting to user
         
         self.num_links = 0              # Links found (and not excluded by filters)
         self.num_followed = 0           # Links followed.  
 
         # Pre-visit filters:  Only visit a URL if it passes these tests
-        self.pre_visit_filters=[self._prefix_ok,
+        self.pre_visit_filters = [self._prefix_ok,
                                 self._exclude_ok,
                                 self._not_visited,
                                 self._same_host]
@@ -81,10 +81,10 @@ class Crawler(object):
         # Out-url filters: When examining a visited page, only process
         # links where the target matches these filters.        
         if filter_seen:
-            self.out_url_filters=[self._prefix_ok,
+            self.out_url_filters = [self._prefix_ok,
                                      self._same_host]
         else:
-            self.out_url_filters=[]
+            self.out_url_filters = []
 
     def _pre_visit_url_condense(self, url):
         """ Reduce (condense) URLs into some canonical form before
@@ -106,7 +106,7 @@ class Crawler(object):
     
     def _prefix_ok(self, url):
         """Pass if the URL has the correct prefix, or none is specified"""
-        return (self.confine_prefix is None  or
+        return (self.confine_prefix is None or
                 url.startswith(self.confine_prefix))
 
     def _exclude_ok(self, url):
@@ -298,9 +298,9 @@ def parse_options():
 
     opts, args = parser.parse_args()
 
-    if not opts.out_path: 
-        parser.print_help(sys.stderr)
-        parser.error('output path not given (options -p)')
+    #if not opts.out_path: 
+    #    parser.print_help(sys.stderr)
+    #    parser.error('output path not given (options -p)')
 
     if len(args) < 1:
         parser.print_help(sys.stderr)
@@ -383,24 +383,43 @@ def main():
     crawler.crawl()
 
     if opts.out_urls:
-        for url in crawler.urls_seen:
-            try:
-                request = urllib2.Request(url)
-                handle = urllib2.build_opener()
-                handle.addheaders = [('User-agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11')]
-                data = handle.open(request)
+        for url_crawl in crawler.urls_seen:
 
-                parsed_uri = urlparse.urlparse(url)
-                directory = opts.out_path + '{uri.netloc}'.format(uri = parsed_uri) + '/'
-                path = directory + ToSeoFriendly(url, 50) + '.html'
-                if not os.path.exists(directory):
-                    os.makedirs(directory)
+            parsed_uri = urlparse.urlparse(url_crawl)
+            
+            #print url
+            #print parsed_uri.netloc.replace('www.', '')
 
-                with open(path, 'w') as file_:
-                    file_.write(data.read())
+            if not re.match(".*%s" % parsed_uri.netloc.replace('www.', ''), url): # and not opts.skip_host:
+                #print 'not-match'
+                continue
 
-            except IOError:
-                pass
+            if not opts.out_path:
+                print url_crawl
+            else:
+                try:
+                    request = urllib2.Request(url_crawl)
+                    handle = urllib2.build_opener()
+                    handle.addheaders = [('User-agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11')]
+                    data = handle.open(request)
+                    
+                    directory = opts.out_path + '{uri.netloc}'.format(uri = parsed_uri) + '/'
+                    path = directory + ToSeoFriendly(url_crawl, 50) + '.html'
+                    if not os.path.exists(directory):
+                        os.makedirs(directory)
+
+                    with open(path, 'w') as file_:
+                        file_.write(data.read())
+
+                except UnicodeEncodeError:
+                    pass
+
+                except IOError:
+                    pass
+
+                except Exception as e:
+                    pass
+
 
     if opts.out_links:
         print "\n".join([str(l) for l in crawler.links_remembered])
