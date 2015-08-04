@@ -431,8 +431,8 @@ def main():
     eTime = time.time()
     tTime = eTime - sTime
 
-    print >> sys.stderr, "Found:    %d" % crawler.num_links
-    print >> sys.stderr, "Followed: %d" % crawler.num_followed
+    #print >> sys.stderr, "Found:    %d" % crawler.num_links
+    #print >> sys.stderr, "Followed: %d" % crawler.num_followed
     print >> sys.stderr, "Stats:    (%d/s after %0.2fs)" % (
             int(math.ceil(float(crawler.num_links) / tTime)), tTime)
 
