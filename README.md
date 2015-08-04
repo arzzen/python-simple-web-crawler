@@ -30,6 +30,7 @@ Usage: crawler.py [options] <url>
 ```
 # Usage
 
+Save links to file
 ```bash
 python crawler.py -d 0 -u -p "/var/tmp/downloaded/" "https://github.com/"
 
@@ -37,6 +38,7 @@ Crawling https://github.com/ (Max Depth: 0)
 Stats:    (2/s after 19.02s)
 ```
 
+Get all links
 ```bash
 python crawler.py -d 0 -l "https://github.com/"
 
