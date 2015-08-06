@@ -2,16 +2,15 @@
 
 from multiprocessing.dummy import Pool as ThreadPool 
 import subprocess
-import logging
 import os
 import sys
+from crawler import LOG_DIRECTORY
 
 FILE_URLS = 'urls.txt';
 SAVE_DIRECTORY = '/var/tmp/downloaded/'
 MAX_DEPTH = 0
 
 MAX_THREAD = 4
-LOG_DIRECTORY = "log"
 LAST_URL_FILE = "%s/last_url.log" % LOG_DIRECTORY
 
 def get_last_url():
@@ -30,11 +29,6 @@ def worker(url):
 	subprocess.Popen(command, shell=True)
 
 def main():
-
-	# todo: relocate!
-	logging.basicConfig(level=logging.DEBUG,
-	                    format='[%(levelname)s] (%(threadName)-10s) %(message)s',
-	                    )
 
 	if not os.path.exists(FILE_URLS):
 		print >> sys.stderr, "File \"%s\" with URLs not exists!" % FILE_URLS
@@ -55,7 +49,7 @@ def main():
 		for url in URLS:
 			if url == last_url:
 				append = True
-				
+
 			if append is True:
 				tmp_urls.append(url)
 	else:

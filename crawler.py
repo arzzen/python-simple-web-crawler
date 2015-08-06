@@ -35,7 +35,8 @@ USAGE = "%prog [options] <url>"
 VERSION = "%prog v" + __version__
 
 AGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11'
-
+LOG_DIRECTORY = "log"
+LOG_ROTATE_INTERVAL = 28 #days
 
 def getLinks(url):
     page = Fetcher(url)
@@ -109,7 +110,8 @@ def toSeoFriendly(s, maxlen):
     return u[:maxlen].rstrip('-').lower()                  # clip to maxlen
 
 
-def main():    
+def main():   
+
     opts, args = parse_options()
 
     url = args[0]
@@ -128,24 +130,42 @@ def main():
     crawler = Crawler(url, depth_limit, confine_prefix, exclude)
     crawler.crawl()
 
+    # create log directory
+    if not os.path.exists(LOG_DIRECTORY):
+        os.makedirs(LOG_DIRECTORY)
+
     num_links = 0
     if opts.out_urls:
         for url_crawl in crawler.urls_seen:
 
             parsed_uri = urlparse.urlparse(url_crawl)
             if not re.match(".*%s" % parsed_uri.netloc.replace('www.', ''), url): # and not opts.skip_host:
+                print "fail"
                 continue
 
             if not opts.out_path:
                 print url_crawl
             else:
+                domain = '{uri.netloc}'.format(uri=parsed_uri)
+                log_file = "%s/%s.log" % (LOG_DIRECTORY, domain)
+
+                logging.basicConfig(
+                    filename=log_file,
+                    filemode='w+',
+                    level=logging.DEBUG,
+                    format='%(asctime)-15s [%(levelname)s] (%(threadName)-10s) %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p'
+                )
+                
                 try:
+
                     request = urllib2.Request(url_crawl)
                     handle = urllib2.build_opener()
+
                     handle.addheaders = [('User-agent', AGENT)]
                     data = handle.open(request)
-                    
-                    directory = opts.out_path + '{uri.netloc}'.format(uri = parsed_uri) + '/'
+
+                    directory = opts.out_path + domain + '/'
                     path = directory + toSeoFriendly(url_crawl, 50) + '.html'
                     
                     if not os.path.exists(directory):
@@ -155,14 +175,22 @@ def main():
                         with open(path, 'w') as file_:
                             file_.write(data.read())
                             num_links = num_links + 1
+                            logging.debug("Saving: {0}".format(url_crawl))
 
-                except UnicodeEncodeError:
+                except urllib2.HTTPError, err:
+                    logging.error("HTTPError: http code {0}".format(err.code))
                     pass
 
-                except IOError:
+                except urllib2.URLError, err:
+                    logging.error("URLError: {0}".format(err.reason))
+                    pass
+
+                except IOError as e:
+                    logging.error("IOError: {0} {1}".format(domain, e.message))
                     pass
 
                 except Exception as e:
+                    logging.error("Error({0}): {1}".format(e.__doc__, e.message), exc_info=True)
                     pass
 
     if opts.out_links:
