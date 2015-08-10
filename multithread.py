@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
 
 from multiprocessing.dummy import Pool as ThreadPool 
 import subprocess

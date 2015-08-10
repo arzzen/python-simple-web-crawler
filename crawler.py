@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#-*- coding:utf-8 -*-
 
 """ Web Crawler/Spider
 
@@ -17,15 +18,16 @@ import math
 import urllib2
 import urlparse
 import optparse
-import hashlib
 import logging
+import requests
 
 from lib.link import Link
 from lib.crawler import Crawler
 from lib.fetcher import Fetcher
 from lib.dotwriter import DotWriter
+from lib.fetcher import AGENT as USER_AGENT
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 __copyright__ = "2015 Lukas Mestan"
 __license__ = "MIT"
 __author__ = "Lukas Mestan"
@@ -34,9 +36,7 @@ __author_email__ = "lukas.mestan@gmail.com"
 USAGE = "%prog [options] <url>"
 VERSION = "%prog v" + __version__
 
-AGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11'
 LOG_DIRECTORY = "log"
-LOG_ROTATE_INTERVAL = 28 #days
 
 def getLinks(url):
     page = Fetcher(url)
@@ -109,7 +109,6 @@ def toSeoFriendly(s, maxlen):
     u = ''.join([c for c in t if c.isalnum() or c=='-'])   # remove punctation   
     return u[:maxlen].rstrip('-').lower()                  # clip to maxlen
 
-
 def main():   
 
     opts, args = parse_options()
@@ -139,8 +138,9 @@ def main():
         for url_crawl in crawler.urls_seen:
 
             parsed_uri = urlparse.urlparse(url_crawl)
+            
+            # only base url
             if not re.match(".*%s" % parsed_uri.netloc.replace('www.', ''), url): # and not opts.skip_host:
-                print "fail"
                 continue
 
             if not opts.out_path:
@@ -158,39 +158,27 @@ def main():
                 )
                 
                 try:
-
-                    request = urllib2.Request(url_crawl)
-                    handle = urllib2.build_opener()
-
-                    handle.addheaders = [('User-agent', AGENT)]
-                    data = handle.open(request)
-
                     directory = opts.out_path + domain + '/'
                     path = directory + toSeoFriendly(url_crawl, 50) + '.html'
                     
                     if not os.path.exists(directory):
                         os.makedirs(directory)
 
+                    r = requests.get(url_crawl, allow_redirects=True, timeout=30)
                     if not os.path.exists(path):
-                        with open(path, 'w') as file_:
-                            file_.write(data.read())
-                            num_links = num_links + 1
-                            logging.debug("Saving: {0}".format(url_crawl))
+                        target = open(path, 'w')
+                        target.write(r.text.encode('utf-8'))
+                        target.close()
 
-                except urllib2.HTTPError, err:
-                    logging.error("HTTPError: http code {0}".format(err.code))
-                    pass
-
-                except urllib2.URLError, err:
-                    logging.error("URLError: {0}".format(err.reason))
-                    pass
+                        num_links = num_links + 1
+                        logging.debug("Saving: {0}".format(url_crawl))
 
                 except IOError as e:
-                    logging.error("IOError: {0} {1}".format(domain, e.message))
+                    logging.error("IOError: {0} {1}".format(url, e.message))
                     pass
 
                 except Exception as e:
-                    logging.error("Error({0}): {1}".format(e.__doc__, e.message), exc_info=True)
+                    logging.error("Error({0}): {1}".format(url, e.__doc__, e.message), exc_info=True)
                     pass
 
     if opts.out_links:

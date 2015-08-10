@@ -1,21 +1,15 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
 
-import re
-import os
 import sys
-import time
-import math
 import urllib2
-import optparse
 import hashlib
 import logging
 import urlparse
 
 from cgi import escape
-from traceback import format_exc
-from Queue import Queue, Empty as QueueEmpty
 from bs4 import BeautifulSoup
 
-from lib.link import Link
 from lib.opaquedataexception import OpaqueDataException
 
 AGENT = 'Mozilla/5.0 (Windows; U; Windows NT 5.1; it; rv:1.8.1.11) Gecko/20071127 Firefox/2.0.0.11'

@@ -1,9 +1,8 @@
 # Requirements
 
-```bash
-python v2.7.x
-pip install beautifulsoup4
-```
+* python v2.7
+* pip install beautifulsoup4
+* pip install requests
 
 # Crawler options
 

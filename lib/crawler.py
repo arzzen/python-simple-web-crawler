@@ -1,21 +1,11 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
 
 import re
-import os
 import sys
-import time
-import math
-import urllib2
-import urlparse
-import optparse
-import hashlib
-import logging
 import urlparse
 
-from cgi import escape
-from traceback import format_exc
 from Queue import Queue, Empty as QueueEmpty
-from bs4 import BeautifulSoup
-
 from lib.link import Link
 from lib.fetcher import Fetcher
 
